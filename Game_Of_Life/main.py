@@ -1,14 +1,14 @@
 import threading
 import tkinter as Tk
 import sys
+from concurrent.futures import ThreadPoolExecutor
 from random import choice
 from tkinter import N, E, S, W
 
 
 tam = int(sys.argv[2])
-if tam > 150 : exit(1)
 bitMap = []
-game_labels = []
+game_labels = [None]*(tam*tam)
 colors = ("red", "green", "blue")
 
 
@@ -53,20 +53,18 @@ def trigger():
 					pass
 
 				if alive and cont < 2:
-					next_bitMap.append(False)
+					next_bitMap.append((i, False))
 					continue
 				if alive and cont > 3:
-					next_bitMap.append(False)
+					next_bitMap.append((i, False))
 					continue
 				if not alive and cont == 3:
-					next_bitMap.append(True)
+					next_bitMap.append((i, True))
 					continue
-				next_bitMap.append(alive)
 
-			bitMap = next_bitMap
-
-			for i, alive in enumerate(bitMap):
-				game_labels[i].config(bg=choice(colors)) if alive else game_labels[i].config(bg='white')
+			for ind, bit in next_bitMap:
+				bitMap[ind] = bit
+				game_labels[ind].config(bg=choice(colors)) if bit else game_labels[ind].config(bg='white')				
 
 
 
@@ -76,6 +74,22 @@ def trigger():
 	game_thread.start()
 
 def main():
+	def callback(i):
+		global tam
+		global game_labels
+		global colors
+
+		for j in range(tam):
+			bg = 'white' if not bitMap[j + i*tam]  else choice(colors)
+			game_label = Tk.Canvas(game_frame,width=10, height=10, bg=bg)
+			game_label.grid(row=i+1, column=j, sticky=N+E+S+W)
+			game_labels[j + i*tam] = game_label
+
+
+
+
+
+
 	root = Tk.Tk()
 	root.title("Conway's")
 
@@ -99,18 +113,16 @@ def main():
 				bitMap.append(True) if bit == '*' else bitMap.append(False)
 			buff = _map.read(1024)
 
-
+	pool = ThreadPoolExecutor(128)
 	for i in range(tam):
-		for j in range(tam):
-			bg = 'white' if not bitMap[j + i*tam]  else choice(colors)
-			game_label = Tk.Canvas(game_frame,width=10, height=10, bg=bg)
-			game_label.grid(row=i+1, column=j, sticky=N+E+S+W)
-			game_labels.append(game_label)
+		pool.submit(callback, i)
+
+	print(threading.active_count())
+
 
 	root.protocol("WM_DELETE_WINDOW", root.destroy)
 	root.mainloop()
 
-if __name__ == "__main__":
-	main()
+main()
 
 			
